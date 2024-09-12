@@ -7,6 +7,9 @@ import sqlite3
 from typing import List
 from fastapi import Cookie, status, requests
 from pydantic import BaseModel
+from passlib.hash import bcrypt
+import os
+
 # stores session data
 sessions = {}
 
@@ -17,6 +20,15 @@ templates = Jinja2Templates(directory="app/templates")
 conn = sqlite3.connect('./database/access.db', check_same_thread=False)
 
 
+def hash_password(password):
+    # Gen een random salt
+    salt = os.urandom(16)
+    
+    # Hash het wachwoord met de salt
+    hashed_password = bcrypt.using(rounds=12, salt=salt).hash(password)
+    
+    return hashed_password
+
 def registerform(request: Request):
     return templates.TemplateResponse("register.html", {"request": request})
 
@@ -26,14 +38,16 @@ def addregister(username, password, firstname, sex, infex, lastname, email, date
     iservaringsdeskundige = False
     isadmin = False
     isbeheerder = False
+
+    hashed_password = hash_password(password)
+
     cursor = conn.cursor()
     cursor.execute("INSERT INTO gebruikers (gebruikersnaam, password, voornaam, tussenvoegsel, achternaam, email, geboortedatum, gender, postcode, adres, toevoegingadres, telefoonnummer, istoezichthouder, iservaringsdeskundige, isadmin, isbeheerder) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [
-                   username, password, firstname, infex, lastname, email, dateofbirth, sex, postalcode, addres, addaddres, phonenumber, istoezichthouder, iservaringsdeskundige, isadmin, isbeheerder])
+                   username, hashed_password, firstname, infex, lastname, email, dateofbirth, sex, postalcode, addres, addaddres, phonenumber, istoezichthouder, iservaringsdeskundige, isadmin, isbeheerder])
     conn.commit()
     cursor.close()
     response = RedirectResponse(url='/login', status_code=status.HTTP_303_SEE_OTHER)
     return response
-
 
 def get_current_user(session_id: str = Cookie(None)):
     if session_id in sessions:

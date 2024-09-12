@@ -61,12 +61,19 @@ async def login_for_access_token(response: JSONResponse, username: str = Form(..
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    session_id = str(uuid4())
+
+    # Toegevoegde security checks, in dit geval HTTP only cookie zorgt ervoor dat XSS niet mogelijk is
+    # Javascript kan deze cookie niet gebruiken.
+    # Secure zorgt ervoor dat alleen HTTPS gebruikt kan worden voor het versturen van de cookie.
+
     user_id = user[0]
-    sessions[session_id] = {"user_id": user_id}
+    session_token = str(uuid4())
+    sessions[session_token] = {"user_id": user_id}
     response = RedirectResponse(
         url='/torolepage', status_code=status.HTTP_303_SEE_OTHER)
-    response.set_cookie(key="session_id", value=session_id)
+    response.set_cookie(key="session_token", value=session_token, httponly=True, secure=True)
+    
+
     return response
 
 

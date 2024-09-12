@@ -5,6 +5,7 @@ import sqlite3
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
+
 api = APIRouter()
 
 # Connect to SQLite database
@@ -220,16 +221,25 @@ async def gebruikers(request: Request):
 # Gebruikers informatie ophalen op id
 @api.get("/api/gebruikers/{gebruiker_id}")
 async def gebruiker_details(request: Request, gebruiker_id: int):
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    
+    user_id = get_current_user(session_id=session_id)
+    if user_id != gebruiker_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM gebruikers WHERE id = ?", (gebruiker_id,))
     gebruiker = cursor.fetchone()
-
+    
     if not gebruiker:
         return {"error": "De gebruiker is niet gevonden!"}
 
     columns = [column[0] for column in cursor.description]
     gebruiker_data = rows_to_dict([gebruiker], columns)[0]
-
     return {"gebruiker": gebruiker_data}
 
 
